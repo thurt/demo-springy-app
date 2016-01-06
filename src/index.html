@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
+  <title>Springy Graph Application</title>
+
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css" />
+  <link rel="stylesheet" href="./css/styles.css" type="text/css" />
+</head>
+
+<body class="noselect">
+  <div class="wrapper">
+    <header class="header">
+      <a href="#" id="new-graph" title="New Graph">
+        <div>
+          <i class="fa fa-plus"></i>
+        </div>
+      </a>
+      <a href="#" id="undo" title="Undo"><div><i class="fa fa-arrow-left"></i></div></a>
+      <a href="#" id="redo" title="Redo"><div><i class="fa fa-arrow-right"></i></div></a>
+      <a href="#" id="load-data" title="Load Data">
+      <div>
+        <input type="file" id="load-data-input" name="file[]" accept="application/json" style="display:none">
+        <i class="fa fa-upload"></i>
+      </div>
+      </a>
+      <a href="#" id="save-data" title="Save Data">
+      <div>
+        <i class="fa fa-download"></i>
+      </div>
+      </a>
+
+    </header>
+    <section class="main">
+      <div class="box sidebar">
+        <fieldset>
+          <legend>
+            <i class="fa fa-book"></i> Log
+          </legend>
+          <span id="log">
+            <i class="fa fa-cog fa-spin"></i>
+          </span>
+        </fieldset>
+
+        <fieldset>
+          <legend>
+            (<i style="font-size:12px" class="fa fa-plus"></i>) Node
+          </legend>
+          <input type="text" id="add-node" placeholder="Node name" tabindex="1">
+        </fieldset>
+
+        <fieldset>
+          <legend>
+            (<i style="font-size:12px" class="fa fa-minus"></i>) Node
+          </legend>
+          <input type="text" id="remove-node" placeholder="Node name" tabindex="2">
+        </fieldset>
+
+        <fieldset>
+          <legend>
+            (<i style="font-size:12px" class="fa fa-plus"></i>) Edge
+          </legend>
+          <input type="text" id="add-edge-start" placeholder="Start node" tabindex="3">
+          <hr>
+          <input type="text" id="add-edge-end" placeholder="End node" tabindex="4">
+        </fieldset>
+
+        <fieldset>
+          <legend>
+            (<i style="font-size:12px" class="fa fa-minus"></i>) Edge
+          </legend>
+          <input type="text" id="remove-edge-start" placeholder="Start node" tabindex="5">
+          <hr>
+          <input type="text" id="remove-edge-end" placeholder="End node" tabindex="6">
+        </fieldset>
+
+        <fieldset>
+          <legend><i class="fa fa-search"></i> Shortest Path</legend>
+          <input type="text" id="shortest-path-start" placeholder="Start node" tabindex="7">
+          <hr>
+          <input type="text" id="shortest-path-end" placeholder="End node" tabindex="8">
+        </fieldset>
+
+
+      </div>
+      <div id="canvas-container" class="box">
+        <canvas id="canvas" class="grabbable" >
+            <p>Your browser is not capable of displaying the canvas element. Please upgrade your browser to view this content.</p>
+          </canvas>
+      </div>
+    </section>
+  </div>
+
+	<!---------------------------------------------------------------------------------->
+  <script type="text/javascript" src="./vendor/jQuery.js"></script>
+	<script type="text/javascript" src="./vendor/FileSaver.js"></script>
+  <script type="text/javascript" src="./vendor/Springy.js"></script>
+  <script type="text/javascript" src="./vendor/SpringyYui.js"></script>
+  <script type="application/javascript">
+  $(document).ready(function() {
+    /*
+      SpringyApplication v0.1.0
+      Author: taylor.a.hurt@gmail.com
+      GitHub: thurt
+
+      Dependencies:
+        Springy & SpringyUI v2.7.1
+        FileSaver.js 2014-11-29
+
+    */
+    /**
+    * Constructor
+    * @param
+    **/
+    var SpringyApplication = (function() {
+      // Internal Shared Variables
+      var _apps = []
+      // Internal Shared Methods
+      var _methods = {
+        /**
+        * @return {boolean}
+        */
+        resetGraph: function() {
+          if (GRAPH.nodes.length) {
+            if (window.confirm('Do you want to save the current graph data?')) {
+              if (!saveData()) return false
+            }
+            GRAPH.filterNodes(function() { return false })
+          }
+          log('Started a new graph', { label: 'info' })
+          return true
+        },
+        /**
+        * @return {boolean}
+        */
+        saveData: function() {
+          try {
+            var blob = new Blob([JSON.stringify(GRAPH.getData())], { type: 'application/json' })
+            window.saveAs(blob, 'graph.json')
+          }
+          catch (err) {
+            log('Cannot save data. ' + err.message, { label: 'fail' })
+            return false
+          }
+          log('Data saved to file', { label: 'info' })
+          return true
+        },
+        /**
+        * @param {File object} file
+        * @return {boolean}
+        */
+        importData: function(file) {
+          var reader = new FileReader()
+          reader.onload = function(e) {
+            try {
+              var data = JSON.parse(e.target.result)
+              if (!data.nodes || !data.edges) {
+                throw 'There is no "nodes" or "edges" property'
+              }
+              GRAPH.loadJSON(e.target.result)
+              return true
+            }
+            catch (err) {
+              log('Cannot import data. ' + err.message, { label: 'fail' })
+              return false
+            }
+          }
+          reader.readAsText(file, 'application/json')
+        },
+        /**
+        * @param {string} name
+        * @return {boolean}
+        */
+        addNode: function(name) {
+          if (!GRAPH.getNode(name)) {
+            GRAPH.addNodes(name)
+            var actions = {
+              undo: function() { removeNode(name) },
+              label: 'success'
+            }
+            log('Added node ' + name, actions)
+            return true
+          }
+          else {
+            log('Cannot add node ' + name, { label: 'fail' })
+            return false
+          }
+        },
+        /**
+        * @param {string} name
+        * @return {boolean}
+        */
+        removeNode: function(name) {
+          var n
+
+          if ((n = GRAPH.getNode(name))) {
+            GRAPH.removeNode(n)
+            var actions = {
+              undo: function() { addNode(name) },
+              label: 'success'
+            }
+            log('Removed node ' + name, actions)
+            return true
+          }
+          else {
+            log('Cannot remove node ' + name, { label: 'fail' })
+            return false
+          }
+        },
+        /**
+        * @param {string} start
+        * @param {end} end
+        * @return {boolean}
+        */
+        addEdge: function(start, end) {
+          var ns = GRAPH.getNode(start), ne = GRAPH.getNode(end),
+              edge = GRAPH.getEdges(ns, ne)
+
+          if (ns && ne && !edge.length && start !== end) {
+            GRAPH.addEdges([start, end])
+            var actions = {
+              undo: function() { removeEdge(start, end) },
+              label: 'success'
+            }
+            log('Added edge ' + start + ' to ' + end, actions)
+            return true
+          }
+          else {
+            log('Cannot add edge ' + start + ' to ' + end, { label: 'fail' })
+            return false
+          }
+        },
+        /**
+        * @param {string} start
+        * @param {string} end
+        * @return {boolean}
+        */
+        removeEdge: function(start, end) {
+          var ns = GRAPH.getNode(start), ne = GRAPH.getNode(end),
+              edge = GRAPH.getEdges(ns, ne)
+
+          if (ns && ne && edge.length && start !== end) {
+            GRAPH.removeEdge(edge[0])
+            var actions = {
+              undo: function() { addEdge(start, end) },
+              label: 'success'
+            }
+            log('Removed edge ' + start + ' to ' + end, actions)
+            return true
+          }
+          else {
+            log('Cannot remove edge ' + start + ' to ' + end, { label: 'fail' })
+            return false
+          }
+        },
+        /**
+        * @param {string} start
+        * @param {string} end
+        * @return {boolean}
+        */
+        shortestPath: function(start, end) {
+          if (start == end || !GRAPH.getNode(start) || !GRAPH.getNode(end)) {
+            log('Cannot find path ' + start + ' to ' + end, { label: 'fail'})
+            return false
+          }
+
+          var edges = GRAPH.getAllEdges()
+          var degree = [], path = []
+
+          if (_solve([start], 0)) {
+            log('Solved path ' + start + ' to ' + end + '<br>[' + _constructPath() + ']', { label: 'success' })
+            return true
+          }
+          else {
+            log('Cannot solve path ' + start + ' to ' + end, { label: 'fail' })
+            return false
+          }
+
+          function _constructPath() {
+            GRAPH.resetEdgeColors()
+            var edge, local_end = end
+            for (var i = degree.length; i--; ) {
+              edge = degree[i].filter(node => node[1] == local_end)[0]
+              GRAPH.modifyEdgeColor(edge, 'teal')
+              path.unshift(edge[1]); path.unshift(edge[0])
+              local_end = edge[0]
+            }
+            return path.filter((node, i, nodes) => nodes.indexOf(node) === i).join(' > ')
+          }
+          function _solve(start_nodes, i) {
+            degree[i] = []
+            start_nodes.forEach(start_node => {
+              for (var j = edges.length; j--; ) {
+                if (edges[j][0] == start_node)
+                  degree[i].push(edges.splice(j, 1)[0])
+                  }
+            })
+
+            if (degree[i].length) {
+              var neighbor_nodes = degree[i].map(edge => edge[1]).filter((node, i, nodes) => nodes.indexOf(node) === i)
+              if (neighbor_nodes.indexOf(end) != -1)
+                return true
+                else
+                  return _solve(neighbor_nodes, ++i)
+                  }
+            else
+              return false
+              }
+        },
+        log: function(msg, options) {
+
+        }
+      }
+      // Internal Shared Utility Functions
+      function _submit(method_name, method_params) {
+        var input_vals = input_els.map(el => el.val().trim())
+        if (_valid(input_vals)) {
+          if (_methods[method_name].apply(this, input_vals))
+        }
+        else { this.LOG('Invalid input for ' + method_name, { label: 'fail' }) }
+
+        function _valid(vals) {
+          return vals.every(val => { return /[\S]+/.test(val) }) // every input value has one non-space character
+            && vals.length == func.length // number of input values matches number of expected arguments in func
+        }
+      }
+
+      /**
+      * @param {HTMLElement} canvas [required]
+      * @param {function} log [optional]
+      * @param {object} initial_data [optional]
+      *  : expects -> { 'nodes': ['name', ... ],
+      *                 'edges': [ ['name', 'name'], ... ] }
+      */
+      function constructor(canvas, log, initial_data) {
+        // Setup the instance
+        var graph = new Springy.Graph() // instance variable
+        graph.loadJSON(initial_data)
+        $(canvas).springy({ graph: graph }) // jQuery has been extended by SpringyUI
+        _apps.push(graph)
+
+        if (typeof log !== 'function') log = function() { return false }
+
+        // Canvas visual behavior
+        canvas.addEventListener('mousedown', function() {
+          this.style.cursor = '-webkit-grabbing'
+        }, true)
+        /**
+        * Attaching mouseup event to the window will ensure that the style gets removed in the case
+        * where the user's mouseup event happens after dragging outside of the canvas element
+        */
+        window.addEventListener('mouseup', function() {
+          canvas.style.cursor = ''
+        }, true)
+
+        // Instance Properties
+        Object.defineProperties(graph, {
+          canvas: {
+            get: function() { return canvas },
+            set: function(new_canvas) {
+              if (_apps.every(app => {
+                if (new_canvas !== app.canvas)
+                  return true
+              }))
+                canvas = new_canvas
+            }
+          },
+          log: {
+
+          }
+        })
+        Object.defineProperty(graph, 'log', {
+          get: function() { return log_function },
+          set: function(new_log_function) {
+            log = new_log_function
+          }
+        })
+        return graph
+      }
+      // _methods names are being put on the prototype so that they can be called externally
+      // and the call will go through _submit first
+      constructor.prototype = (function() {
+        var prototype = {}
+        Object.keys(_methods).forEach(method_name => {
+          prototype[method_name] = function() { _submit.call(this, method_name, Array.slice.call(arguments))}
+        })
+        return prototype
+      })()
+      return constructor
+    })()
+
+    // Log generator for DOM applications ---------------------------------------------------------
+    /**
+    *  @param [required] {HTMLElement} element
+    *    : The DOM element that messages will be appended to
+    *  @param [optional] {object} decorators
+    *    : Each key should represent a decorator method name
+    *    : Each key value should be a decorator method
+    *      : Decorator methods will be called with this = msg (see return function)
+    *
+    * @return {function} log
+    *  @param [required] {string} msg
+    *    : The text content of the message
+    *  @param [optional] {object} decorations
+    *    : Each key should represent a decorator method name
+    *    : Each key value should be the parameter value to pass to the decorator method
+    *  @member {object} log.decorators
+    *  @member {getter/setter} log.element
+    **/
+    function createLog(element, decorators) {
+      if (typeof decorators !== 'object') decorators = {}
+
+      function log(msg, decorations) {
+        decorateMsg()
+        this.element.appendChild(msg)
+
+        function decorateMsg() {
+          var method_name
+          for (method_name in decorations) {
+            if (method_name in this.decorators)
+              msg = this.decorators[method_name].call(msg, decorations[method_name])
+            else
+              throw new ReferenceError('This log does not support decorator named ' + method_name)
+          }
+        }
+      }
+      Object.defineProperty(log, 'element', {
+        get: function() { return element },
+        set: function(new_el) {
+          if (new_el instanceof window.HTMLElement)
+            element = new_el
+          else
+            throw new TypeError('Invalid assignment for log.element: Expected instance of window.HTMLElement')
+        }
+      })
+      Object.defineProperties(log, {
+        decorators: {
+          get: function() {
+            return decorators
+          }
+        }
+        addDecorator: {
+          value: function(name, func) {
+            if (!decorators[name] && typeof func === 'function') {
+              decorators[name] = func
+            }
+          }
+        },
+        removeDecorator: {
+          value: function(name) {
+            if (decorators[name]) {
+              delete decorators[name]
+            }
+          }
+        }
+      })
+      log.element = element
+      log.decorators = decorators
+      return log
+    }
+
+    function MyObj(decorators) {
+      Object.defineProperty(this, 'decorators', {
+        get: function() {
+          return decorators
+        }
+      })
+    }
+
+    // Initialization --------------------------------------------------------------
+    //// Create a user log for this application
+    var USER_LOG = createLog(document.getElementById('log'))
+    USER_LOG.addDecorator('label', function(type) {
+      var label = document.createElement('i')
+      switch (type) {
+        case 'info':
+          label.classList.add('fa')
+          label.classList.add('fa-info-circle')
+          label.style.color = 'blue'
+          break
+          case 'success':
+          label.classList.add('fa')
+          label.classList.add('fa-check-circle')
+          label.style.color = 'green'
+          break
+          case 'fail':
+          label.classList.add('fa')
+          label.classList.add('fa-times-circle')
+          label.style.color = 'red'
+          break
+          default:
+          return this // type not recognized. do nothing
+      }
+      label.appendChild(this)
+      return label
+    })
+
+    var CANVAS = document.getElementById('canvas')
+    var JSON_DEMO_DATA = {
+      "nodes": ["a", "b", "c", "d", "e", "f"],
+      "edges": [
+        ["a", "b"],
+        ["a", "d"],
+        ["b", "c"],
+        ["b", "f"],
+        ["c", "f"],
+        ["f", "d"],
+        ["c", "e"],
+        ["f", "e"],
+        ["d", "e"]
+      ]
+    }
+    var APP = new SpringyApplication(CANVAS, USER_LOG, JSON_DEMO_DATA)
+
+    //// resize canvas based on it's div container size
+    /*
+    window.addEventListener('resize', function(e) {
+      var c = document.getElementById('canvas-container')
+      c.width = window.innerWidth - 183
+      APP.CANVAS.width = c.width - 3
+      APP.CANVAS.height = c.height - 3
+    }, false)
+    window.dispatchEvent(new Event('resize'))*/
+    // Wire-Up -----------------------------------------------------------------------
+    //// input fields
+    var add_node = document.getElementById('add-node'),
+        remove_node = document.getElementById('remove-node'),
+        add_edge = [document.getElementById('add-edge-start'), document.getElementById('add-edge-end')],
+        remove_edge = [document.getElementById('remove-edge-start'), document.getElementById('remove-edge-end')],
+        shortest_path = [document.getElementById('shortest-path-start'), document.getElementById('shortest-path-end')]
+
+    //// trigger an application method when pressing 'enter'(key code 13) inside an input field
+    add_node.onkeydown = e => {
+      if (e.which == 13 && APP.addNode(add_node.value))
+        add_node.value = ''
+    }
+    remove_node.onkeydown = e => {
+      if (e.which == 13 && APP.removeNode(remove_node.value))
+        remove_node.value = ''
+    }
+    add_edge.forEach(input => {
+      input.onkeydown = e => {
+        if (e.which == 13 && APP.addEdge(add_edge[0].value, add_edge[1].value)) {
+          add_edge[0].value = ''
+          add_edge[1].value = ''
+        }
+      }
+    })
+    remove_edge.forEach(input => {
+      input.onkeydown = e => {
+        if (e.which == 13 && APP.removeEdge(remove_edge[0].value, remove_edge[1].value)) {
+          remove_edge[0].value = ''
+          remove_edge[1].value = ''
+        }
+      }
+    })
+    shortest_path.forEach(input => {
+      input.onkeydown = e => {
+        if (e.which == 13 && APP.shortestPath(shortest_path[0].value, shortest_path[1].value)) {
+          shortest_path[0].value = ''
+          shortest_path[1].value = ''
+        }
+      }
+    })
+
+    //// top-bar actions
+    document.getElementById('load-data').onclick = e => {
+      e.preventDefault(); document.getElementById('import-data-input').dispatchEvent(new Event('click'))
+    }
+    document.getElementById('load-data-input').onchange = e => {
+      APP.importData(e.target.files[0])
+    }
+    document.getElementById('save-data').onclick = e => {
+      e.preventDefault(); APP.saveData()
+    }
+    document.getElementById('new-graph').onclick = e => {
+      e.preventDefault(); APP.resetGraph()
+    }
+
+    // Springy Additions --------------------------------------------------------------
+    //// modifications to the prototype
+    Springy.Graph.prototype.getNode = function(name) {
+      for (var node of this.nodes) {
+        if (node.id == name)
+          return node
+      }
+      return false
+    }
+    Springy.Graph.prototype.getAllEdges = function() {
+      return this.edges.map(edge => [edge.source.id, edge.target.id])
+    }
+    Springy.Graph.prototype.modifyEdgeColor = function(edge, color) {
+        this.edges.some(Springy_e => {
+          if (Springy_e.source.id == edge[0] && Springy_e.target.id == edge[1]) {
+            Springy_e.data.color = color
+            this.notify()
+            return true
+          }
+        })
+    }
+    Springy.Graph.prototype.resetEdgeColors = function() {
+      this.edges.forEach(e => delete e.data.color)
+      this.notify()
+    }
+    Springy.Graph.prototype.getData = function() {
+      var data = { "nodes": [], "edges": [] }
+      this.nodes.forEach(node => data.nodes.push(node.id))
+      this.edges.forEach(edge => data.edges.push([edge.source.id, edge.target.id]))
+      return data
+    }
+  })
+  </script>
+</body>
+</html>
