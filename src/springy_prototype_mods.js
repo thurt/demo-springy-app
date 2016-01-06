@@ -1,5 +1,5 @@
  /* global Springy */
-module.exports = (function() {
+(function() {
    Springy.Graph.prototype.getNode = function(name) {
       for (var node of this.nodes) {
          if (node.id == name)
