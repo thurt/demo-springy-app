@@ -4,8 +4,129 @@
   <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
   <title>Springy Application</title>
 
-  <link rel="stylesheet" href="./node_modules/font-awesome/css/font-awesome.min.css" />
-  <link rel="stylesheet" href="./css/styles.css" />
+  <script src="../node_modules/jquery/dist/jquery.min.js"></script>
+  <link rel="stylesheet" href="../node_modules/font-awesome/css/font-awesome.min.css" />
+  <style type="text/css">
+    /* Template Styles */
+    * {
+       margin: 0;
+       padding: 0;
+    }
+
+    html,
+    body {
+       height: 100%;
+       overflow: hidden;
+    }
+
+    body {
+       font-family: Open Sans, Arial, sans-serif;
+       font-size: 14px;
+    }
+
+    .wrapper {
+       height: 100%;
+       display: table;
+       width: 100%;
+    }
+
+    .header {
+       display: table-row;
+       height: 1em;
+       background: #dddddd;
+       outline: 1px solid gray;
+    }
+
+    .main {
+       height: 100%;
+       display: table;
+       /*width: 100%;*/
+    }
+
+    .box {
+       display: table-cell;
+       vertical-align: top;
+    }
+
+    .sidebar {
+       padding-top: 10px;
+       padding-left: 10px;
+       width:12em;
+    }
+
+    #canvas-container {
+       width: 100%;
+    }
+
+    .footer {
+       display: table-row;
+       background: #dddddd;
+       height: 1em;
+       overflow: hidden;
+    }
+
+
+    /* Display Styles */
+
+    .clickable {
+       cursor: pointer
+    }
+
+    .grabbable {
+       cursor: -webkit-grab
+    }
+
+    .noselect {
+       -webkit-touch-callout: none;
+       -webkit-user-select: none;
+       -khtml-user-select: none;
+       -moz-user-select: none;
+       -ms-user-select: none;
+       user-select: none;
+    }
+
+    fieldset {
+       margin-bottom: 1em;
+       border-radius: 8px;
+       padding: 8px 5px 12px 5px;
+       box-shadow: 0px 2px 4px black, 2px 3px 5px #cccccc;
+       border: 3px groove;
+       cursor: default;
+    }
+
+    legend {
+       background: white;
+    }
+
+    hr {
+       border: none;
+       margin: 3px 0;
+    }
+
+    input {
+       padding: 5px 5px;
+       width: inherit;
+    }
+
+    a,
+    a:visited,
+    a:active {
+       color: black;
+       text-decoration: none;
+    }
+
+    .header div {
+       float: left;
+       padding: 0 8px;
+       text-shadow: 1px 1px 2px #cccccc;
+       outline: 1px solid gray;
+    }
+
+    #log .message {
+       padding-left: 4px;
+    }
+
+  </style>
 </head>
 
 <body class="noselect">
@@ -16,8 +137,6 @@
           <i class="fa fa-plus"></i>
         </div>
       </a>
-      <a href="#" id="undo" title="Undo"><div><i class="fa fa-arrow-left"></i></div></a>
-      <a href="#" id="redo" title="Redo"><div><i class="fa fa-arrow-right"></i></div></a>
       <a href="#" id="load-data" title="Load Data">
       <div>
         <input type="file" id="load-data-input" name="file[]" accept="application/json" style="display:none">
@@ -37,9 +156,9 @@
           <legend>
             <i class="fa fa-book"></i> Log
           </legend>
-          <span id="log">
-            <i class="fa fa-cog fa-spin"></i>
-          </span>
+          <div id="log">
+
+          </div>
         </fieldset>
 
         <fieldset>
@@ -90,6 +209,13 @@
       </div>
     </section>
   </div>
-  <script src="./AppController.js"></script>
+
+  <script src="../node_modules/FileSaver.js/FileSaver.min.js"></script>
+  <script src="../node_modules/springy/springy.js"></script>
+  <script src="../node_modules/springy/springyui.js"></script>
+  <script src="SpringyApp.js"></script>
+  <script src="createTransformer.js"></script>
+  <script src="createLog.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
