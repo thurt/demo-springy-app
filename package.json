@@ -11,8 +11,6 @@
   "license": "ISC",
   "dependencies": {
     "FileSaver.js": "alferov/FileSaver.js",
-    "font-awesome": "^4.5.0",
-    "jquery": "^2.1.4",
     "springy": "^2.7.1"
   },
   "devDependencies": {
