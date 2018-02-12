@@ -5,7 +5,7 @@
     "This application creates an interface for creating graphs using the Springy.js graph library",
   "main": "src/index.html",
   "scripts": {
-    "build": "html-inline ./src/index.html -o ./dist/index.html"
+    "build": "html-inline -i index.html -o dist/index.html"
   },
   "author": "thurt",
   "license": "ISC",
@@ -16,6 +16,6 @@
     "springy": "^2.7.1"
   },
   "devDependencies": {
-    "html-inline": "^1.2.0"
+    "html-inline": "github:Trott/html-inline#ignore-remote-urls"
   }
 }
