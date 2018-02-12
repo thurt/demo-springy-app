@@ -1,9 +1,12 @@
 {
   "name": "springy-app",
   "version": "1.0.0",
-  "description": "This application creates an interface for creating graphs using the Springy.js graph library",
+  "description":
+    "This application creates an interface for creating graphs using the Springy.js graph library",
   "main": "src/index.html",
-  "scripts": {},
+  "scripts": {
+    "build": "html-inline ./src/index.html -o ./dist/index.html"
+  },
   "author": "thurt",
   "license": "ISC",
   "dependencies": {
@@ -11,5 +14,8 @@
     "font-awesome": "^4.5.0",
     "jquery": "^2.1.4",
     "springy": "^2.7.1"
+  },
+  "devDependencies": {
+    "html-inline": "^1.2.0"
   }
 }
